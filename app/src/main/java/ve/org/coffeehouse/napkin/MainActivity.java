@@ -1,6 +1,9 @@
-package ve.co.coffeehouse.coffeehouseandroid;
+package ve.org.coffeehouse.napkin;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
+import android.database.Cursor;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -8,31 +11,38 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
+import android.view.ContextMenu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.ListView;
-import android.widget.ArrayAdapter;
+import android.widget.Toast;
+
 import java.util.ArrayList;
 
-import ve.co.coffeehouse.coffeehouseandroid.data.NotesDbHelper;
+import ve.org.coffeehouse.napkin.data.Note;
+import ve.org.coffeehouse.napkin.data.NoteListBaseAdapter;
+import ve.org.coffeehouse.napkin.data.NotesDbHelper;
 
-public class NotesActivity extends AppCompatActivity
+public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     NotesDbHelper db;
 
     ListView listView;
-    ArrayList<String> values;
-    ArrayAdapter<String> adapter;
+    ArrayList<Note> values;
+    NoteListBaseAdapter adapter;
+
+    Integer selected_note_id = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_notes);
+        setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -61,16 +71,51 @@ public class NotesActivity extends AppCompatActivity
         db = new NotesDbHelper(this);
 
         listView = (ListView) findViewById(R.id.notes_list);
+
         values = db.getAllNotes();
-        adapter = new ArrayAdapter(this,
-                android.R.layout.simple_list_item_1, android.R.id.text1, values);
+
+        adapter = new NoteListBaseAdapter(this, values);
         listView.setAdapter(adapter);
+        registerForContextMenu(listView);
+
+        listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
+                TextView hidden_id = (TextView) view.findViewById(R.id.hidden_id);
+                selected_note_id = Integer.parseInt(hidden_id.getText().toString());
+                return false;
+            }
+        });
     }
 
     public void saveNote(TextView v) {
-        db.insertNote(v.getText().toString());
-        adapter.insert(v.getText().toString(), 0);
+        Note note = db.insertNote(v.getText().toString());
+        values.add(0, note);
+        adapter.notifyDataSetChanged();
         v.setText("");
+    }
+
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo){
+        menu.add(0, selected_note_id, 0, "Copy");
+        menu.add(0, selected_note_id, 0, "Delete");
+    }
+
+    public boolean onContextItemSelected(MenuItem item){
+        if(item.getTitle()=="Copy"){
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            Cursor res = db.getNote(item.getItemId());
+            ClipData clip = ClipData.newPlainText("note", res.getString(res.getColumnIndex("content")));
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(getApplicationContext(), "Item copied", Toast.LENGTH_LONG).show();
+        }
+        if(item.getTitle()=="Delete"){
+            db.deleteNote(item.getItemId());
+            values.clear();
+            values.addAll(db.getAllNotes());
+            adapter.notifyDataSetChanged();
+            Toast.makeText(getApplicationContext(), "Item deleted", Toast.LENGTH_LONG).show();
+        }
+        return true;
     }
 
     @Override
@@ -83,28 +128,6 @@ public class NotesActivity extends AppCompatActivity
         }
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.notes, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
@@ -112,12 +135,6 @@ public class NotesActivity extends AppCompatActivity
         int id = item.getItemId();
 
         switch (id) {
-            case R.id.nav_dashboard:
-                startActivity(new Intent(this, MainActivity.class));
-                break;
-            case R.id.nav_settings:
-                startActivity(new Intent(this, SettingsActivity.class));
-                break;
             case R.id.nav_about:
                 startActivity(new Intent(this, AboutActivity.class));
                 break;

@@ -1,4 +1,4 @@
-package ve.co.coffeehouse.coffeehouseandroid;
+package ve.org.coffeehouse.napkin;
 
 import org.junit.Test;
 

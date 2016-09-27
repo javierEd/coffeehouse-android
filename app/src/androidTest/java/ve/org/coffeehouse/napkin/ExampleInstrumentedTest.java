@@ -1,4 +1,4 @@
-package ve.co.coffeehouse.coffeehouseandroid;
+package ve.org.coffeehouse.napkin;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;

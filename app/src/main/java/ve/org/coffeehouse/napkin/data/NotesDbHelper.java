@@ -1,4 +1,4 @@
-package ve.co.coffeehouse.coffeehouseandroid.data;
+package ve.org.coffeehouse.napkin.data;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -38,17 +38,28 @@ public class NotesDbHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public boolean insertNote(String content) {
+    public Note insertNote(String content) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
         contentValues.put("content", content);
-        db.insert("notes", null, contentValues);
-        return true;
+        long id = db.insert("notes", null, contentValues);
+        int id1 =  (int) (long) id;
+        Cursor res = getNote(id1);
+        Note note = new Note(id1, content, res.getString(res.getColumnIndex("created_at")));
+        return note;
     }
 
     public Cursor getNote(int id){
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor res =  db.rawQuery( "select * from notes where id="+id+"", null );
+        res.moveToFirst();
+        return res;
+    }
+
+    public Cursor deleteNote(int id){
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res =  db.rawQuery( "delete from notes where id="+id+"", null );
+        res.moveToFirst();
         return res;
     }
 
@@ -58,16 +69,19 @@ public class NotesDbHelper extends SQLiteOpenHelper {
         return numRows;
     }
 
-    public ArrayList<String> getAllNotes()
+    public ArrayList<Note> getAllNotes()
     {
-        ArrayList<String> array_list = new ArrayList<String>();
+        ArrayList<Note> array_list = new ArrayList<Note>();
 
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor res =  db.rawQuery( "select * from notes order by id desc", null );
         res.moveToFirst();
 
         while(res.isAfterLast() == false){
-            array_list.add(res.getString(res.getColumnIndex("content")));
+            Note note = new Note(res.getInt(res.getColumnIndex("id")),
+                    res.getString(res.getColumnIndex("content")),
+                    res.getString(res.getColumnIndex("created_at")));
+            array_list.add(note);
             res.moveToNext();
         }
         return array_list;
